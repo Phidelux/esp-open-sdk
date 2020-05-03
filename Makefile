@@ -4,8 +4,8 @@
 # which can be used with multiple SDK versions.
 STANDALONE = y
 
-GCC_VERSION = 7.4.0
-CT_GCC_VERSION = 7_4_0
+GCC_VERSION = 9.2.0
+CT_GCC_VERSION = 9_2_0
 
 # Directory to install toolchain to, by default inside current dir.
 TOOLCHAIN = $(TOP)/xtensa-lx106-elf
