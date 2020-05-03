@@ -13,7 +13,7 @@ TOOLCHAIN = $(TOP)/xtensa-lx106-elf
 
 # Vendor SDK version to install, see VENDOR_SDK_ZIP_* vars below
 # for supported versions.
-VENDOR_SDK = 2.1.0
+VENDOR_SDK = 3.0.3
 
 .PHONY: crosstool-ng esptool toolchain _libhal libs sdk liblwip postbuild
 
@@ -26,6 +26,9 @@ VENDOR_SDK_ZIP = $(VENDOR_SDK_ZIP_$(VENDOR_SDK))
 VENDOR_ZIP_DIR = $(VENDOR_ZIP_DIR_$(VENDOR_SDK))
 VENDOR_SDK_DIR = $(VENDOR_SDK_DIR_$(VENDOR_SDK))
 
+VENDOR_SDK_ZIP_3.0.3 = ESP8266_NONOS_SDK-3.0.3.zip
+VENDOR_ZIP_DIR_3.0.3 = ESP8266_NONOS_SDK-3.0.3
+VENDOR_SDK_DIR_3.0.3 = esp_nonos_sdk_v3.0.3
 VENDOR_SDK_ZIP_2.1.0 = ESP8266_NONOS_SDK-2.1.0.zip
 VENDOR_ZIP_DIR_2.1.0 = ESP8266_NONOS_SDK-2.1.0
 VENDOR_SDK_DIR_2.1.0 = esp_nonos_sdk_v2.1.0
@@ -219,7 +222,6 @@ endif
 .sdk_dir_$(VENDOR_SDK): $(VENDOR_SDK_ZIP)
 	$(UNZIP) $^
 	-mv -f $(VENDOR_ZIP_DIR) $(VENDOR_SDK_DIR)
-	-mv License .sdk_dir_$(VENDOR_SDK)
 	touch $@
 
 postbuild:
@@ -228,7 +230,7 @@ postbuild:
 	@cp -f $(TOP)/esp-open-lwip/include/lwipopts.h $(TOOLCHAIN)/xtensa-lx106-elf/sys-include/
 	@cp -Rf $(TOOLCHAIN)/xtensa-lx106-elf/usr/include/lwip $(TOOLCHAIN)/xtensa-lx106-elf/sys-include/
 	@cp -Rf $(TOOLCHAIN)/xtensa-lx106-elf/usr/include/arch $(TOOLCHAIN)/xtensa-lx106-elf/sys-include/
-	@cp -Rf $(TOOLCHAIN)/xtensa-lx106-elf/usr/include/xtensa/* $(TOOLCHAIN)/xtensa-lx106-elf/sys-include/xtensa/
+	@cp -Rf $(TOOLCHAIN)/xtensa-lx106-elf/include/xtensa/* $(TOOLCHAIN)/xtensa-lx106-elf/sys-include/xtensa/
 	@echo "Installing vendor SDK libs into sysroot"
 	@cp -f $(TOOLCHAIN)/xtensa-lx106-elf/usr/lib/libhal.a $(TOOLCHAIN)/xtensa-lx106-elf/lib/libhal.a
 
@@ -253,6 +255,13 @@ distclean: clean
 	-rm -rf $(TOOLCHAIN)
 
 sdk_patch: .sdk_dir_$(VENDOR_SDK) .sdk_patch_$(VENDOR_SDK)
+
+.sdk_patch_3.0.3: user_rf_cal_sector_set.o
+	echo -e "#undef ESP_SDK_VERSION\n#define ESP_SDK_VERSION 030003" >>$(VENDOR_SDK_DIR)/include/esp_sdk_ver.h
+	$(PATCH) -d $(VENDOR_SDK_DIR) -p1 < c_types-c99_sdk_3.patch
+	cd $(VENDOR_SDK_DIR)/lib; mkdir -p tmp; cd tmp; $(TOOLCHAIN)/bin/xtensa-lx106-elf-ar x ../libcrypto.a; cd ..; $(TOOLCHAIN)/bin/xtensa-lx106-elf-ar rs libwpa.a tmp/*.o
+	$(TOOLCHAIN)/bin/xtensa-lx106-elf-ar r $(VENDOR_SDK_DIR)/lib/libmain.a user_rf_cal_sector_set.o
+	@touch $@
 
 .sdk_patch_2.1.0: user_rf_cal_sector_set.o
 	echo -e "#undef ESP_SDK_VERSION\n#define ESP_SDK_VERSION 020100" >>$(VENDOR_SDK_DIR)/include/esp_sdk_ver.h
@@ -403,7 +412,8 @@ empty_user_rf_pre_init.o: empty_user_rf_pre_init.c $(TOOLCHAIN)/bin/xtensa-lx106
 user_rf_cal_sector_set.o: user_rf_cal_sector_set.c $(TOOLCHAIN)/bin/xtensa-lx106-elf-gcc $(VENDOR_SDK_DIR)
 	$(TOOLCHAIN)/bin/xtensa-lx106-elf-gcc -O2 -I$(VENDOR_SDK_DIR)/include -c $<
 
-
+ESP8266_NONOS_SDK-3.0.3.zip:
+	wget --content-disposition "https://github.com/espressif/ESP8266_NONOS_SDK/archive/v3.0.3.zip"
 ESP8266_NONOS_SDK-2.1.0.zip:
 	wget --content-disposition "https://github.com/espressif/ESP8266_NONOS_SDK/archive/v2.1.0.zip"
 # The only change wrt to ESP8266_NONOS_SDK_V2.0.0_16_07_19.zip is licensing blurb in source/
